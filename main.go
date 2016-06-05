@@ -1,33 +1,30 @@
 package main
 
-import "bufio"
 import "os"
 import "fmt"
 import "encoding/xml"
+import "encoding/json"
 
 import "trie"
+import "websocketserver"
 
+import "net/http"
+
+var index *trie.Vertex
 
 func main() {
-    index := buildIndexFromXMLFile("/home/ubuntu/dev/go-dictionary-search/files/strongsgreek.xml")
+    index = buildIndexFromXMLFile("/home/ubuntu/dev/go-dictionary-search/files/strongsgreek.xml")
 
     if index == nil {
         return
     }
 
-    fmt.Print("Enter text: ")
+    websocketserver.NewHandler("query", queryToResultJson)
 
-    scanner := bufio.NewScanner(os.Stdin)
-    scanner.Scan()
-    bytes := scanner.Bytes()
-    text := string(bytes)
-
-    fmt.Println("You entered: " + text)
-    results := index.GetWordsOfPrefix(text)
-    fmt.Print("Results: ")
-    for _, w := range results {
-        fmt.Printf("%v: ", w.Value)
-        fmt.Printf("%v\n", w.Definition)
+    fmt.Println("Listening on port " + "8080")
+    err := http.ListenAndServe(":" + "8080", nil)
+    if err != nil {
+        panic("ListenAndServe failed: " + err.Error())
     }
 }
 
@@ -72,4 +69,14 @@ type StrongsEntry struct {
 type Greek struct {
     Unicode string `xml:"unicode,attr"`
     Translit string `xml:"translit,attr"`
+}
+
+func queryToResultJson (in []byte) []byte {
+    text := string(in)
+
+    results := index.GetWordsOfPrefix(text)
+
+    jsonData, _ := json.Marshal(results)
+
+    return jsonData
 }
